@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
 import { useHardwareData } from '../hooks/useHardwareData';
 import type { UsageType, RecommendedBuild } from '../types';
 import { recommend } from '../utils/recommend';
@@ -14,24 +13,34 @@ const USAGES: { key: UsageType; label: string; desc: string }[] = [
   { key: 'all-round', label: '全能', desc: '游戏+工作综合用途' },
 ];
 
-export default function RecommendPage() {
-  const [searchParams] = useSearchParams();
-  const fromUrl = searchParams.get('usage') as UsageType;
-  const initialUsage: UsageType = (fromUrl && USAGES.some(u => u.key === fromUrl)) ? fromUrl : 'gaming';
+function readUsageFromHash(): UsageType {
+  try {
+    const raw = window.location.hash;
+    const params = new URLSearchParams(raw.includes('?') ? raw.split('?')[1] : '');
+    const u = params.get('usage');
+    if (u && USAGES.some(x => x.key === u)) return u as UsageType;
+  } catch { /* ignore */ }
+  return 'gaming';
+}
 
+export default function RecommendPage() {
   const [budget, setBudget] = useState(8000);
-  const [usage, setUsage] = useState<UsageType>(initialUsage);
+  const [usage, setUsage] = useState<UsageType>(readUsageFromHash);
   const { items, loading, error } = useHardwareData();
 
   const results: RecommendedBuild[] = useMemo(() => {
     if (items.length === 0) return [];
-    try {
-      return recommend(items, budget, usage);
-    } catch (e) {
-      console.error('Recommend failed:', e);
-      return [];
-    }
+    return recommend(items, budget, usage);
   }, [items, budget, usage]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const u = readUsageFromHash();
+      if (u !== usage) setUsage(u);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [usage]);
 
   return (
     <div className="recommend-page">
@@ -57,8 +66,8 @@ export default function RecommendPage() {
         </div>
       </section>
 
-      <div style={{ padding: '16px', background: '#f0f0f0', borderRadius: '8px', marginTop: '16px' }}>
-        <p><strong>Debug:</strong> items={items.length} loading={String(loading)} error={String(error)} results={results.length} budget={budget} usage={usage}</p>
+      <div style={{ padding: '16px', background: '#f0f0f0', borderRadius: '8px', margin: '16px 0', fontSize: '14px' }}>
+        <strong>Debug:</strong> items={items.length} loading={String(loading)} error={String(error)} results={results.length} budget={budget} usage={usage}
       </div>
 
       {error ? (
@@ -67,14 +76,13 @@ export default function RecommendPage() {
         <p className="loading-text">加载硬件数据中...</p>
       ) : results.length === 0 ? (
         <p className="empty-text">
-          暂无可推荐的配置，请调整预算或用途
-          <br />
-          <small>当前数据: {items.length} 件硬件, 预算: ¥{budget.toLocaleString()}, 用途: {usage}</small>
+          暂无可推荐的配置<br/>
+          <small>硬件 {items.length} 件 | 预算 ¥{budget.toLocaleString()} | {usage}</small>
         </p>
       ) : (
         <section className="recommend-results">
           <h2>推荐方案</h2>
-          <p className="results-hint">以下提供三套方案，按不同策略优化，请根据偏好选择</p>
+          <p className="results-hint">以下提供三套方案，按不同策略优化</p>
           <div className="builds-grid">
             {results.map(build => (
               <BuildCard key={build.id} build={build} />
