@@ -16,7 +16,8 @@ const USAGES: { key: UsageType; label: string; desc: string }[] = [
 
 export default function RecommendPage() {
   const [searchParams] = useSearchParams();
-  const initialUsage = (searchParams.get('usage') as UsageType) || 'gaming';
+  const fromUrl = searchParams.get('usage') as UsageType;
+  const initialUsage: UsageType = (fromUrl && USAGES.some(u => u.key === fromUrl)) ? fromUrl : 'gaming';
 
   const [budget, setBudget] = useState(8000);
   const [usage, setUsage] = useState<UsageType>(initialUsage);
@@ -24,7 +25,12 @@ export default function RecommendPage() {
 
   const results: RecommendedBuild[] = useMemo(() => {
     if (items.length === 0) return [];
-    return recommend(items, budget, usage);
+    try {
+      return recommend(items, budget, usage);
+    } catch (e) {
+      console.error('Recommend failed:', e);
+      return [];
+    }
   }, [items, budget, usage]);
 
   return (
@@ -51,12 +57,20 @@ export default function RecommendPage() {
         </div>
       </section>
 
+      <div style={{ padding: '16px', background: '#f0f0f0', borderRadius: '8px', marginTop: '16px' }}>
+        <p><strong>Debug:</strong> items={items.length} loading={String(loading)} error={String(error)} results={results.length} budget={budget} usage={usage}</p>
+      </div>
+
       {error ? (
         <p className="error-text">数据加载失败: {error}</p>
       ) : loading ? (
         <p className="loading-text">加载硬件数据中...</p>
       ) : results.length === 0 ? (
-        <p className="empty-text">暂无可推荐的配置，请调整预算或用途</p>
+        <p className="empty-text">
+          暂无可推荐的配置，请调整预算或用途
+          <br />
+          <small>当前数据: {items.length} 件硬件, 预算: ¥{budget.toLocaleString()}, 用途: {usage}</small>
+        </p>
       ) : (
         <section className="recommend-results">
           <h2>推荐方案</h2>
