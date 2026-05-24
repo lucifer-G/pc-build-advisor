@@ -21,7 +21,7 @@ export function useHardwareData(category?: HardwareCategory) {
 
     async function fetchData() {
       try {
-        const res = await fetch('/data/hardware.json');
+        const res = await fetch(import.meta.env.BASE_URL + 'data/hardware.json');
         if (!res.ok) throw new Error('数据加载失败');
         const data: HardwareItem[] = await res.json();
         if (cancelled) return;
