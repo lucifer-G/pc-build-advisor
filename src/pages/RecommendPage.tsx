@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useHardwareData } from '../hooks/useHardwareData';
 import type { UsageType, RecommendedBuild } from '../types';
 import { recommend } from '../utils/recommend';
@@ -13,18 +14,12 @@ const USAGES: { key: UsageType; label: string; desc: string }[] = [
   { key: 'all-round', label: '全能', desc: '游戏+工作综合用途' },
 ];
 
-function getUsageFromHash(): UsageType {
-  const hash = window.location.hash;
-  const match = hash.match(/[?&]usage=([a-z-]+)/);
-  if (match && USAGES.some(u => u.key === match[1])) {
-    return match[1] as UsageType;
-  }
-  return 'gaming';
-}
-
 export default function RecommendPage() {
+  const [searchParams] = useSearchParams();
+  const initialUsage = (searchParams.get('usage') as UsageType) || 'gaming';
+
   const [budget, setBudget] = useState(8000);
-  const [usage, setUsage] = useState<UsageType>(getUsageFromHash);
+  const [usage, setUsage] = useState<UsageType>(initialUsage);
   const { items, loading, error } = useHardwareData();
 
   const results: RecommendedBuild[] = useMemo(() => {
