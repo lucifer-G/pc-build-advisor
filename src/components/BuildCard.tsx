@@ -1,12 +1,19 @@
 import type { RecommendedBuild, HardwareItem } from '../types';
 import { checkCompatibility } from '../utils/compatibility';
 
-function getCategoryName(cat: string): string {
-  const map: Record<string, string> = {
-    cpu: 'CPU', gpu: '显卡', ram: '内存', monitor: '显示器',
-    motherboard: '主板', storage: '存储', psu: '电源', case: '机箱',
-  };
-  return map[cat] || cat;
+const CAT_ICONS: Record<string, string> = {
+  cpu: '🔲', gpu: '🎮', ram: '📊', monitor: '🖥️',
+  motherboard: '📋', storage: '💾', psu: '🔌', case: '🖥️',
+};
+
+const CAT_NAMES: Record<string, string> = {
+  cpu: 'CPU 处理器', gpu: '显卡', ram: '内存', monitor: '显示器',
+  motherboard: '主板', storage: '硬盘', psu: '电源', case: '机箱',
+};
+
+function getSpecSummary(item: HardwareItem): string {
+  const specs = Object.entries(item.specs).slice(0, 2);
+  return specs.map(([k, v]) => `${k}: ${v}`).join('  |  ');
 }
 
 export default function BuildCard({ build }: { build: RecommendedBuild }) {
@@ -17,24 +24,41 @@ export default function BuildCard({ build }: { build: RecommendedBuild }) {
   ].filter((i): i is HardwareItem => i !== null);
 
   const strategyLabel = {
-    value: '性价比优先',
-    balanced: '均衡配置',
-    performance: '性能优先',
+    value: '性价比优先', balanced: '均衡配置', performance: '性能优先',
+  }[build.strategy];
+  const strategyColor = {
+    value: '#059669', balanced: '#2563eb', performance: '#d97706',
   }[build.strategy];
 
   return (
     <div className="build-card">
-      <div className="build-card__header">
-        <h2>{build.name}</h2>
-        <span className="build-card__badge">{strategyLabel}</span>
+      <div className="build-card__top">
+        <div className="build-card__title-row">
+          <h2>{build.name}</h2>
+          <span className="build-card__badge" style={{ background: strategyColor }}>
+            {strategyLabel}
+          </span>
+        </div>
+        <div className="build-card__price-row">
+          <span className="build-card__total">&yen;{build.totalPrice.toLocaleString()}</span>
+          <span className="build-card__score">
+            性价比 <strong>{build.valueScore}</strong>
+          </span>
+        </div>
       </div>
 
-      <div className="build-card__components">
+      <div className="build-card__list">
         {components.map((item) => (
-          <div key={item.id} className="build-card__component">
-            <span className="build-card__comp-cat">{getCategoryName(item.category)}</span>
-            <span className="build-card__comp-model">{item.brand} {item.model}</span>
-            <span className="build-card__comp-price">&yen;{item.price.toLocaleString()}</span>
+          <div key={item.id} className={`build-comp ${!item.price ? 'build-comp--missing' : ''}`}>
+            <span className="build-comp__icon">{CAT_ICONS[item.category] || '📦'}</span>
+            <div className="build-comp__info">
+              <div className="build-comp__head">
+                <span className="build-comp__cat">{CAT_NAMES[item.category] || item.category}</span>
+                <span className="build-comp__price">&yen;{item.price.toLocaleString()}</span>
+              </div>
+              <div className="build-comp__model">{item.brand} {item.model}</div>
+              <div className="build-comp__specs">{getSpecSummary(item)}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -48,11 +72,6 @@ export default function BuildCard({ build }: { build: RecommendedBuild }) {
           ))}
         </div>
       )}
-
-      <div className="build-card__summary">
-        <span className="build-card__total">总价: &yen;{build.totalPrice.toLocaleString()}</span>
-        <span className="build-card__value">性价比评分: {build.valueScore}</span>
-      </div>
     </div>
   );
 }

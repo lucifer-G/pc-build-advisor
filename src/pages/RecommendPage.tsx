@@ -3,6 +3,7 @@ import { useHardwareData } from '../hooks/useHardwareData';
 import type { UsageType, RecommendedBuild } from '../types';
 import { recommend } from '../utils/recommend';
 import BudgetSlider from '../components/BudgetSlider';
+import BuildCard from '../components/BuildCard';
 
 const USAGES: { key: UsageType; label: string; desc: string }[] = [
   { key: 'office', label: '办公', desc: '文档处理、上网、视频会议' },
@@ -29,22 +30,13 @@ export default function RecommendPage() {
 
   const results: RecommendedBuild[] = useMemo(() => {
     if (items.length === 0) return [];
-    try {
-      console.log('recommend called with', items.length, 'items, budget:', budget, 'usage:', usage);
-      const r = recommend(items, budget, usage);
-      console.log('recommend returned', r.length, 'results');
-      return r;
-    } catch (e) {
-      console.error('recommend error:', e);
-      return [];
-    }
+    return recommend(items, budget, usage);
   }, [items, budget, usage]);
-
-  console.log('RecommendPage render:', { items: items.length, loading, error, results: results.length, budget, usage });
 
   return (
     <div className="recommend-page">
       <h1>配置推荐</h1>
+      <p className="recommend-subtitle">选择预算和用途，智能匹配最具性价比的装机方案</p>
 
       <section className="recommend-form">
         <BudgetSlider value={budget} onChange={setBudget} />
@@ -66,36 +58,23 @@ export default function RecommendPage() {
         </div>
       </section>
 
-      <div style={{ padding: '16px', background: '#f0f0f0', borderRadius: '8px', margin: '16px 0', fontSize: '14px' }}>
-        <p><strong>Debug:</strong> items={items.length} loading={String(loading)} error={String(error)} results={results.length} budget={budget} usage={usage}</p>
-        {results.length > 0 && (
-          <div style={{ marginTop: '12px' }}>
-            {results.map((b, i) => (
-              <div key={i} style={{ marginBottom: '8px', padding: '8px', background: '#fff', borderRadius: '4px' }}>
-                <p><strong>{b.name}</strong> — ¥{b.totalPrice.toLocaleString()} (性价比: {b.valueScore})</p>
-                <p style={{ fontSize: '12px', color: '#666' }}>
-                  CPU: {b.cpu.brand} {b.cpu.model} ({b.cpu.price}) |
-                  GPU: {b.gpu ? `${b.gpu.brand} ${b.gpu.model} (${b.gpu.price})` : '无'} |
-                  RAM: {b.ram.model} ({b.ram.price}) |
-                  主板: {b.motherboard.model} ({b.motherboard.price}) |
-                  存储: {b.storage.model} ({b.storage.price}) |
-                  电源: {b.psu.model} ({b.psu.price}) |
-                  机箱: {b.case.model} ({b.case.price}) |
-                  显示器: {b.monitor ? `${b.monitor.model} (${b.monitor.price})` : '无'}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {error ? (
         <p className="error-text">数据加载失败: {error}</p>
       ) : loading ? (
-        <p className="loading-text">加载硬件数据中...</p>
-      ) : results.length === 0 && items.length > 0 ? (
+        <p className="loading-text">正在分析硬件数据...</p>
+      ) : results.length === 0 ? (
         <p className="empty-text">暂无可推荐的配置，请调整预算或用途</p>
-      ) : null}
+      ) : (
+        <section className="recommend-results">
+          <h2>为你推荐 {results.length} 套方案</h2>
+          <p className="results-hint">根据 ¥{budget.toLocaleString()} 预算 · {USAGES.find(u => u.key === usage)?.label}用途，按不同策略优化</p>
+          <div className="builds-grid">
+            {results.map(build => (
+              <BuildCard key={build.id} build={build} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
