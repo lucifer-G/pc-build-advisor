@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useHardwareData } from '../hooks/useHardwareData';
 import type { UsageType, RecommendedBuild } from '../types';
 import { recommend } from '../utils/recommend';
@@ -14,13 +13,19 @@ const USAGES: { key: UsageType; label: string; desc: string }[] = [
   { key: 'all-round', label: '全能', desc: '游戏+工作综合用途' },
 ];
 
-export default function RecommendPage() {
-  const [searchParams] = useSearchParams();
-  const initialUsage = (searchParams.get('usage') as UsageType) || 'gaming';
+function getUsageFromHash(): UsageType {
+  const hash = window.location.hash;
+  const match = hash.match(/[?&]usage=([a-z-]+)/);
+  if (match && USAGES.some(u => u.key === match[1])) {
+    return match[1] as UsageType;
+  }
+  return 'gaming';
+}
 
+export default function RecommendPage() {
   const [budget, setBudget] = useState(8000);
-  const [usage, setUsage] = useState<UsageType>(initialUsage);
-  const { items, loading } = useHardwareData();
+  const [usage, setUsage] = useState<UsageType>(getUsageFromHash);
+  const { items, loading, error } = useHardwareData();
 
   const results: RecommendedBuild[] = useMemo(() => {
     if (items.length === 0) return [];
@@ -51,9 +56,13 @@ export default function RecommendPage() {
         </div>
       </section>
 
-      {loading ? (
+      {error ? (
+        <p className="error-text">数据加载失败: {error}</p>
+      ) : loading ? (
         <p className="loading-text">加载硬件数据中...</p>
-      ) : results.length > 0 ? (
+      ) : results.length === 0 ? (
+        <p className="empty-text">暂无可推荐的配置，请调整预算或用途</p>
+      ) : (
         <section className="recommend-results">
           <h2>推荐方案</h2>
           <p className="results-hint">以下提供三套方案，按不同策略优化，请根据偏好选择</p>
@@ -63,7 +72,7 @@ export default function RecommendPage() {
             ))}
           </div>
         </section>
-      ) : null}
+      )}
     </div>
   );
 }
