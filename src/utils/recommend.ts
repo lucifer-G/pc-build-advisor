@@ -8,22 +8,14 @@ const BUDGET_RATIOS: Record<UsageType, BudgetAllocation> = {
   'all-round': { cpu: 0.22, gpu: 0.22, ram: 0.12, motherboard: 0.08, storage: 0.12, psu: 0.08, case: 0.04, monitor: 0.12 },
 };
 
-function filterByBudget(items: HardwareItem[], maxPrice: number): HardwareItem[] {
-  return items
-    .filter(item => item.price <= maxPrice)
-    .sort((a, b) => b.score - a.score);
-}
-
 function pickBest(items: HardwareItem[], budget: number, minRequired: boolean): HardwareItem | null {
-  const candidates = items.filter(i => i.price <= budget);
-  if (candidates.length === 0) {
-    if (minRequired) {
-      const sorted = [...items].sort((a, b) => a.price - b.price);
-      return sorted[0] || null;
-    }
-    return null;
+  const withinBudget = items.filter(i => i.price <= budget).sort((a, b) => b.score - a.score);
+  if (withinBudget.length > 0) return withinBudget[0];
+  if (minRequired) {
+    const byPrice = [...items].sort((a, b) => a.price - b.price);
+    return byPrice[0] || null;
   }
-  return candidates[0];
+  return null;
 }
 
 function generateBuildName(usage: UsageType, strategy: string): string {
@@ -53,32 +45,14 @@ export function recommend(
   return strategies.map(({ name: strategy, budgetMultiplier }) => {
     const effectiveBudget = budget * budgetMultiplier;
 
-    const cpuBudget = effectiveBudget * ratio.cpu;
-    const gpuBudget = effectiveBudget * ratio.gpu;
-    const ramBudget = effectiveBudget * ratio.ram;
-    const mbBudget = effectiveBudget * ratio.motherboard;
-    const storageBudget = effectiveBudget * ratio.storage;
-    const psuBudget = effectiveBudget * ratio.psu;
-    const caseBudget = effectiveBudget * ratio.case;
-    const monitorBudget = effectiveBudget * ratio.monitor;
-
-    const cpus = filterByBudget(getItems('cpu'), cpuBudget);
-    const gpus = filterByBudget(getItems('gpu'), gpuBudget);
-    const rams = filterByBudget(getItems('ram'), ramBudget);
-    const mbs = filterByBudget(getItems('motherboard'), mbBudget);
-    const storages = filterByBudget(getItems('storage'), storageBudget);
-    const psus = filterByBudget(getItems('psu'), psuBudget);
-    const cases = filterByBudget(getItems('case'), caseBudget);
-    const monitors = filterByBudget(getItems('monitor'), monitorBudget);
-
-    const cpu = pickBest(cpus, cpuBudget, true)!;
-    const gpu = usage === 'office' ? null : pickBest(gpus, gpuBudget, false);
-    const ram = pickBest(rams, ramBudget, true)!;
-    const motherboard = pickBest(mbs, mbBudget, true)!;
-    const storage = pickBest(storages, storageBudget, true)!;
-    const psu = pickBest(psus, psuBudget, true)!;
-    const caseItem = pickBest(cases, caseBudget, true)!;
-    const monitor = pickBest(monitors, monitorBudget, false);
+    const cpu = pickBest(getItems('cpu'), effectiveBudget * ratio.cpu, true)!;
+    const gpu = usage === 'office' ? null : pickBest(getItems('gpu'), effectiveBudget * ratio.gpu, false);
+    const ram = pickBest(getItems('ram'), effectiveBudget * ratio.ram, true)!;
+    const motherboard = pickBest(getItems('motherboard'), effectiveBudget * ratio.motherboard, true)!;
+    const storage = pickBest(getItems('storage'), effectiveBudget * ratio.storage, true)!;
+    const psu = pickBest(getItems('psu'), effectiveBudget * ratio.psu, true)!;
+    const caseItem = pickBest(getItems('case'), effectiveBudget * ratio.case, true)!;
+    const monitor = pickBest(getItems('monitor'), effectiveBudget * ratio.monitor, false);
 
     const totalPrice = [cpu, gpu, ram, motherboard, storage, psu, caseItem, monitor]
       .filter(Boolean)
